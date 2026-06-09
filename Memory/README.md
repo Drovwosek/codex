@@ -1,17 +1,26 @@
-# Codex workspace notes
+# Память рабочего пространства Codex
 
-This folder is the Obsidian vault for shared Codex work.
+Эта папка хранит общую память, правила и рабочий контекст. Ее также можно открыть как хранилище Obsidian.
 
-The main workspace map lives in `workspace-map.md`.
+Карта рабочего пространства находится в [workspace-map.md](workspace-map.md).
 
-Recommended flow:
+## Рекомендуемый порядок работы
 
-1. Open `E:\Codex\codex.code-workspace` in VS Code to see projects, notes, scripts, and references in one window.
-2. Open `E:\Codex\Memory` as a vault in Obsidian for plans, journals, and durable context.
-3. Start Codex inside a project with `E:\Codex\Scripts\codex-in.ps1 <project-name>`.
+1. Открой корень репозитория в редакторе кода.
+2. При необходимости открой папку `Memory` как отдельное хранилище Obsidian.
+3. Запускай Codex из каталога проекта, с которым нужно работать.
 
-When you want Codex to work from a durable document, point it at a file in this folder, for example:
+Пример для любого терминала:
 
 ```text
-Use E:\Codex\Memory\current-context.md as the working context and keep it updated.
+cd <путь-к-репозиторию>
+codex
 ```
+
+Если Codex должен опираться на долговременный контекст, укажи относительный путь:
+
+```text
+Используй Memory/current-context.md как рабочий контекст и обновляй его после важных изменений.
+```
+
+Не сохраняй здесь абсолютные пути, зависящие от конкретного компьютера или операционной системы. Используй пути относительно корня репозитория.

@@ -1,40 +1,37 @@
-# Codex workspace map
+# Карта рабочего пространства Codex
 
-`E:\Codex` is the shared workspace root. It contains active projects, shared notes, helper scripts, and reference material.
+Корень рабочего пространства - корень этого репозитория. Все пути в документации указываются относительно него.
 
-## Main areas
+## Основные области
 
-- `Memory` - shared notes and durable context for Codex work. Open this folder as an Obsidian vault.
-- `Scripts` - small launch helpers for working with this workspace from PowerShell or cmd.
-- `Repo` - active product and code projects.
-- `Repo/LMS` - main LMS app, Next.js + Prisma/Postgres. Separate git repository.
-- `Repo/lms-ai-landing` - static HTML/CSS/JS landing page. Tracked by the root repository.
-- `Repo/jtbd-interview-transformer` - React + TypeScript + Vite app. Separate git repository.
-- `Repo/figma-mcp-react-demo` - React + TypeScript + Vite demo project. Separate git repository.
-- `methodology` - shared definitions, questions, and working methodology notes.
-- `Skills` - locally adapted Codex workflow and skill materials.
+- `Memory` - правила, долговременный контекст и вспомогательные указатели.
+- `Memory/Agents` - роли для критики и интеграции методологии.
+- `methodology` - определения, термины, принципы и открытые вопросы продуктовой методологии.
+- `Skills` - локально адаптированные рабочие процессы Codex.
+- `vibe coding talk 19.06.2026` - материалы доклада о вайбкодинге.
 
-## Helper commands
+## Работа с репозиторием
 
-Run these from a terminal when `E:\Codex\Scripts` is on PATH, or call the files directly.
+Открой корень репозитория в любом редакторе, который умеет работать с папками и Markdown. Для запуска Codex перейди в нужный каталог и выполни:
 
-- `cw` - open `E:\Codex\codex.code-workspace` in VS Code.
-- `cprojects` - list known project folders under `E:\Codex\Repo`.
-- `cdx <project-name>` - start Codex inside a project. Defaults to `LMS`.
-- `obsnotes` - open `Memory` as an Obsidian vault.
-
-PowerShell equivalents:
-
-```powershell
-E:\Codex\Scripts\open-workspace.ps1
-E:\Codex\Scripts\list-projects.ps1
-E:\Codex\Scripts\codex-in.ps1 LMS
-E:\Codex\Scripts\open-obsidian-vault.ps1
+```text
+codex
 ```
 
-## Suggested mental model
+Полезные платформенно-независимые команды Git:
 
-- Work on product code inside the project folders.
-- Keep durable decisions, plans, and handoff notes in `Memory`.
-- Treat `Scripts` as workspace utilities, not product code.
-- Treat `Skills` as reference material unless you are explicitly editing it.
+```text
+git status
+git pull --ff-only
+git log --oneline -10
+```
+
+Конкретный способ открытия редактора или Obsidian зависит от установленного приложения. Документация рабочего пространства не должна предполагать наличие определенной операционной системы, буквы диска, домашнего каталога или оболочки командной строки.
+
+## Модель хранения
+
+- Работай с тематическим содержимым в соответствующих корневых папках.
+- Храни долговременные решения, правила и контекст в `Memory`.
+- Используй `Skills` как библиотеку рабочих процессов, если задача явно не требует их редактирования.
+- Используй относительные пути во всех переносимых документах.
+- Абсолютные пути допустимы только во временных локальных инструкциях, которые не входят в репозиторий.

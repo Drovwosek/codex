@@ -1,18 +1,21 @@
-# Current context
+# Текущий контекст
 
-Working file for active Codex tasks.
+Рабочий файл для активных задач Codex.
 
-## How to use it
+## Как использовать
 
-- Write the goal, links to projects, and important constraints here.
-- Ask Codex to update this file after major changes.
-- Keep decisions here when they should survive a single chat.
+- Записывай сюда цель, ссылки на проекты и важные ограничения.
+- Используй пути относительно корня репозитория.
+- Обновляй файл после существенных решений и изменений.
+- Храни здесь только контекст, который должен пережить отдельную сессию.
 
-## Active projects
+## Активные области
 
-- `E:\Codex\Repo\LMS`
-- `E:\Codex\Repo\lms-ai-landing`
-- `E:\Codex\Repo\jtbd-interview-transformer`
-- `E:\Codex\Repo\figma-mcp-react-demo`
-- `E:\Codex\Skills`
-- `E:\Codex\Memory`
+- `vibe coding talk 19.06.2026` - план и материалы доклада о вайбкодинге.
+- `methodology` - продуктовая методология, определения и открытые вопросы.
+- `Skills` - адаптированные рабочие процессы и навыки Codex.
+- `Memory` - правила, долговременный контекст и карта рабочего пространства.
+
+## Текущая задача
+
+- Доработать план доклада с учетом задач дизайнеров и проектировщиков.

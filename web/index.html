@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="AI-редактор Telegram-постов для ресторанного маркетинга">
+  <title>Постовая — Telegram-посты для ресторанов</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar">
+      <a class="brand" href="#profiles" aria-label="Постовая">
+        <span class="brand-mark">П</span>
+        <span>Постовая</span>
+      </a>
+      <nav class="main-nav" aria-label="Основная навигация">
+        <button class="nav-item active" type="button" data-view="profiles"><span>◫</span>Заведения</button>
+        <button class="nav-item" type="button" data-view="editor"><span>✦</span>Новая публикация</button>
+        <button class="nav-item" type="button" data-view="drafts"><span>▤</span>Черновики <b id="navDraftCount">0</b></button>
+      </nav>
+      <div class="sidebar-bottom">
+        <span class="status-pill" id="aiStatus"><span class="status-dot"></span>Проверяем AI</span>
+        <p>Данные хранятся в этом браузере</p>
+      </div>
+    </aside>
+
+    <div class="main-area">
+      <header class="topbar">
+        <div class="topbar-start">
+          <button class="sidebar-toggle" id="sidebarToggle" type="button" aria-label="Скрыть боковую панель" title="Скрыть боковую панель">☰</button>
+        </div>
+        <button class="button button--primary button--sm" id="newPostButton" type="button">＋ Новая публикация</button>
+      </header>
+
+      <main class="app-shell">
+        <section class="page-view profiles-view" id="profilesView">
+          <div class="page-heading">
+            <div><h1>Заведения</h1><p>У каждого заведения свой профиль и собственные аудитории.</p></div>
+            <div class="profile-counters"><span><b id="venueCount">0</b> заведений</span><span><b id="audienceCount">0</b> сегментов</span></div>
+          </div>
+
+          <div class="profiles-layout">
+            <section class="profiles-main card">
+              <div class="catalog-toolbar">
+                <div><strong>Каталог заведений</strong><small>Аудитории находятся внутри соответствующих заведений</small></div>
+                <button class="button button--secondary button--sm" id="openVenueDialog" type="button">＋ Добавить заведение</button>
+              </div>
+              <div class="venue-tree" id="venueTree"></div>
+            </section>
+
+            <aside class="research-panel card" id="researchPanel">
+              <div class="research-heading">
+                <div><strong>AI-исследование заведения</strong><small>Запускается автоматически после добавления заведения или перед созданием его первого поста.</small></div>
+                <span>Авто</span>
+              </div>
+              <p class="research-status" id="researchStatus">Добавьте заведение — агент сам начнёт собирать публичную информацию.</p>
+              <div class="research-result hidden" id="researchResult">
+                <div class="research-summary"><strong id="researchResultName"></strong><p id="researchDescription"></p></div>
+                <dl class="research-facts">
+                  <div><dt>Позиционирование</dt><dd id="researchPositioning"></dd></div>
+                  <div><dt>Голос бренда</dt><dd id="researchVoice"></dd></div>
+                </dl>
+                <div class="research-section"><strong>Подтверждённые факты</strong><ul id="researchFacts"></ul></div>
+                <div class="research-section"><strong>Форматы публикаций</strong><ul id="researchStyles"></ul></div>
+                <div class="research-section warning hidden" id="uncertaintiesBlock"><strong>Нужно проверить</strong><ul id="researchUncertainties"></ul></div>
+                <div class="research-section"><strong>Источники</strong><div class="source-list" id="researchSources"></div></div>
+                <button id="saveResearch" class="button button--primary" type="button">Сохранить профиль заведения</button>
+              </div>
+            </aside>
+          </div>
+        </section>
+
+        <section class="page-view hidden" id="editorView">
+          <div class="page-heading">
+            <div><h1>Новая публикация</h1><p>Подготовьте Telegram-пост под конкретное заведение и аудиторию.</p></div>
+            <span class="channel-badge">Telegram</span>
+          </div>
+
+          <section class="workspace">
+      <form class="composer card" id="composerForm">
+        <div class="section-heading">
+          <div><h2>Контекст публикации</h2><p>Для кого и от чьего имени пишем</p></div>
+        </div>
+
+        <div class="field-grid">
+          <label class="field">
+            <span>Заведение</span>
+            <select id="venueSelect" required></select>
+          </label>
+          <label class="field">
+            <span>Аудитория</span>
+            <select id="audienceSelect" required></select>
+          </label>
+        </div>
+        <div class="context-preview" id="contextPreview"></div>
+
+        <div class="divider"></div>
+        <div class="section-heading">
+          <div><h2>Содержание</h2><p>Что должно появиться в канале</p></div>
+        </div>
+
+        <label class="field">
+          <span>Тема или инфоповод <b>*</b></span>
+          <input id="topicInput" type="text" maxlength="500" placeholder="Например: запустили сезонное меню с лисичками" required>
+        </label>
+        <label class="field">
+          <span>Материалы и факты</span>
+          <textarea id="materialsInput" maxlength="12000" rows="7" placeholder="Вставьте описание, даты, цены, условия акции, цитаты или заметки. Чем точнее факты, тем лучше результат."></textarea>
+          <small><span id="materialsCount">0</span> / 12 000</small>
+        </label>
+
+        <label class="field">
+          <span>Формат публикации</span>
+          <select id="postStyleSelect"></select>
+          <small class="field-hint">Форматы зависят от профиля выбранного заведения</small>
+        </label>
+
+        <label class="upload-zone" id="uploadZone">
+          <input id="imageInput" type="file" accept="image/jpeg,image/png,image/webp">
+          <span class="upload-icon">＋</span>
+          <span><strong>Добавить изображение</strong><small>JPG, PNG или WEBP до 10 МБ · не отправляется AI</small></span>
+        </label>
+        <div class="image-chip hidden" id="imageChip">
+          <img id="imageThumb" alt="Превью вложения">
+          <span id="imageName"></span>
+          <button id="removeImage" type="button" aria-label="Удалить изображение">×</button>
+        </div>
+
+        <button class="button button--primary button--block generate-button" id="generateButton" type="submit">
+          <span>Создать публикацию</span><span class="button-arrow">↗</span>
+        </button>
+        <p class="form-error hidden" id="formError" role="alert"></p>
+      </form>
+
+      <aside class="result-panel card">
+        <div class="result-header">
+          <div>
+            <h2>Предпросмотр</h2>
+            <p>Готовый текст можно отредактировать</p>
+          </div>
+          <span class="save-state" id="saveState">Не сохранён</span>
+        </div>
+
+        <div class="empty-state" id="emptyState">
+          <div class="telegram-orbit"><span>↗</span></div>
+          <h3>Здесь появится ваш пост</h3>
+          <p>Заполните тему и материалы слева. Текст можно будет отредактировать перед публикацией.</p>
+        </div>
+
+        <div class="loading-state hidden" id="loadingState">
+          <div class="loader-lines"><i></i><i></i><i></i><i></i></div>
+          <h3>Собираем публикацию</h3>
+          <p>Учитываем голос заведения и интересы аудитории</p>
+        </div>
+
+        <div class="editor-state hidden" id="editorState">
+          <div class="demo-banner hidden" id="demoBanner">Демо-режим: подключите API-ключ для полноценной генерации</div>
+          <textarea id="resultEditor" aria-label="Текст Telegram-поста"></textarea>
+          <div class="editor-meta"><span id="resultCount">0 знаков</span><span>Можно редактировать</span></div>
+          <div class="result-actions">
+            <button class="button button--primary" id="saveDraft" type="button">Сохранить черновик</button>
+            <button class="button button--secondary" id="copyPost" type="button">Скопировать текст</button>
+          </div>
+          <div class="attached-preview hidden" id="attachedPreview">
+            <img id="resultImage" alt="Изображение к публикации">
+            <span>Изображение приложено отдельно</span>
+          </div>
+        </div>
+
+      </aside>
+          </section>
+        </section>
+
+        <section class="page-view hidden" id="draftsView">
+          <div class="page-heading">
+            <div><h1>Черновики</h1><p>Сохранённые публикации для ваших заведений.</p></div>
+            <span class="counter-badge"><b id="draftCount">0</b> публикаций</span>
+          </div>
+          <div class="drafts-card card">
+            <div class="drafts-toolbar">
+              <label class="search-field"><span>⌕</span><input id="draftSearch" type="search" placeholder="Найти по теме или заведению"></label>
+            </div>
+            <div id="draftList" class="draft-list"><p class="muted">Сохранённых черновиков пока нет.</p></div>
+          </div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <dialog id="venueDialog">
+    <form class="entity-dialog" method="dialog">
+      <div class="dialog-header"><div><h2 id="venueDialogTitle">Добавить заведение</h2><p>Профиль используется для исследования и генерации публикаций.</p></div><button class="dialog-close" value="cancel" aria-label="Закрыть">×</button></div>
+      <input id="profileName" placeholder="Название">
+      <input id="profileFormat" placeholder="Формат заведения — например, семейная траттория">
+      <textarea id="profileCurrentGuests" rows="3" placeholder="Портрет текущих посетителей — кто они, зачем приходят, что для них важно"></textarea>
+      <textarea id="profileDesiredGuests" rows="3" placeholder="Портрет желаемых посетителей — кого хотите привлечь, с каким поводом и потребностями"></textarea>
+      <div class="dialog-actions"><button class="button button--secondary" value="cancel">Отмена</button><button id="saveVenue" class="button button--primary" type="button">Сохранить заведение</button></div>
+    </form>
+  </dialog>
+
+  <dialog id="audienceDialog">
+    <form class="entity-dialog" method="dialog">
+      <div class="dialog-header"><div><h2 id="audienceDialogTitle">Добавить аудиторию</h2><p id="audienceDialogContext"></p></div><button class="dialog-close" value="cancel" aria-label="Закрыть">×</button></div>
+      <input id="audienceName" placeholder="Название сегмента">
+      <textarea id="audiencePortrait" rows="3" placeholder="Портрет посетителей — кто они, зачем приходят, что для них важно"></textarea>
+      <textarea id="audienceNeeds" rows="2" placeholder="Ключевые потребности и ожидания"></textarea>
+      <div class="dialog-actions"><button class="button button--secondary" value="cancel">Отмена</button><button id="saveAudience" class="button button--primary" type="button">Сохранить аудиторию</button></div>
+    </form>
+  </dialog>
+
+  <script src="js/utils.js" defer></script>
+  <script src="js/store.js" defer></script>
+  <script src="js/api.js" defer></script>
+  <script src="app.js" defer></script>
+</body>
+</html>

@@ -1,4 +1,4 @@
-const { $, escapeHtml, safeHttpUrl } = window.Postovaya.utils;
+const { $, escapeHtml } = window.Postovaya.utils;
 const { STORAGE, DEFAULT_POST_STYLES, state, save, audiencesForVenue } = window.Postovaya.store;
 const api = window.Postovaya.api;
 
@@ -19,7 +19,6 @@ const els = {
   profileDesiredGuests: $("#profileDesiredGuests"),
   venueDialog: $("#venueDialog"), audienceDialog: $("#audienceDialog"),
   audienceName: $("#audienceName"), audiencePortrait: $("#audiencePortrait"), audienceNeeds: $("#audienceNeeds"),
-  researchPanel: $("#researchPanel"), researchStatus: $("#researchStatus"), researchResult: $("#researchResult"),
 };
 
 function renderSelects() {
@@ -124,14 +123,6 @@ async function generate(event) {
     els.error.classList.remove("hidden");
     switchView("profiles");
     return;
-  }
-  const venue = state.venues.find(item => item.id === els.venue.value);
-  if (venue && !venue.researchedAt && !venue.researchAttemptedAt) {
-    const researched = await researchVenue(venue);
-    if (researched) {
-      switchView("profiles");
-      return;
-    }
   }
   setView("loading");
   els.generate.disabled = true;
@@ -242,7 +233,7 @@ function renderProfiles() {
     return `
       <article class="venue-node">
         <div class="venue-node-header">
-          <div><strong>${escapeHtml(venue.name)} ${researchBadge(venue)}</strong><small>${escapeHtml(venueSummary(venue))}</small></div>
+          <div><strong>${escapeHtml(venue.name)}</strong><small>${escapeHtml(venueSummary(venue))}</small></div>
           <div class="row-actions"><button class="button button--ghost button--xs" type="button" data-edit-venue="${venue.id}">Изменить</button><button class="button button--danger button--xs" type="button" data-remove-venue="${venue.id}" aria-label="Удалить заведение">Удалить</button></div>
         </div>
         <div class="venue-audiences">
@@ -252,12 +243,6 @@ function renderProfiles() {
         </div>
       </article>`;
   }).join("") || '<p class="profile-empty">Заведений пока нет. Добавьте первое — аудитории появятся внутри его карточки.</p>';
-}
-
-function researchBadge(item) {
-  if (item.researchedAt) return '<span class="profile-badge ready">AI-профиль</span>';
-  if (item.researchAttemptedAt) return '<span class="profile-badge">Исследуется</span>';
-  return '<span class="profile-badge">Не исследовано</span>';
 }
 
 function venueSummary(item) {
@@ -283,7 +268,6 @@ function saveVenue() {
   renderProfiles();
   renderSelects();
   els.venueDialog.close();
-  if (!existing) researchVenue(item);
 }
 
 function saveAudience() {
@@ -320,81 +304,6 @@ function openAudienceDialog(venue, audience = null) {
   els.audiencePortrait.value = audience?.description || "";
   els.audienceNeeds.value = audience?.needs || "";
   els.audienceDialog.showModal();
-}
-
-function setResearchStatus(message, isError = false) {
-  els.researchStatus.textContent = message;
-  els.researchStatus.classList.toggle("hidden", !message);
-  els.researchStatus.classList.toggle("error", isError);
-}
-
-function renderResearchResult(data) {
-  const profile = data.profile;
-  state.research = data;
-  $("#researchResultName").textContent = profile.name;
-  $("#researchDescription").textContent = profile.description;
-  $("#researchPositioning").textContent = profile.positioning;
-  $("#researchVoice").textContent = profile.voice;
-  $("#researchFacts").innerHTML = profile.known_facts.map(item => `<li>${escapeHtml(item)}</li>`).join("");
-  $("#researchStyles").innerHTML = profile.recommended_styles.map(item => `<li>${escapeHtml(item)}</li>`).join("");
-  $("#researchUncertainties").innerHTML = profile.uncertainties.map(item => `<li>${escapeHtml(item)}</li>`).join("");
-  $("#uncertaintiesBlock").classList.toggle("hidden", !profile.uncertainties.length);
-  $("#researchSources").innerHTML = data.sources.map(source => {
-    const url = safeHttpUrl(source.url);
-    return url ? `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(source.title)}</a>` : "";
-  }).join("") || '<span class="muted">Источники не возвращены. Не сохраняйте профиль без ручной проверки.</span>';
-  els.researchResult.classList.remove("hidden");
-}
-
-async function researchVenue(venue) {
-  if (!venue?.name) return false;
-  venue.researchAttemptedAt = new Date().toISOString();
-  save(STORAGE.venues, state.venues);
-  state.research = null;
-  els.researchResult.classList.add("hidden");
-  setResearchStatus(`Исследуем «${venue.name}»: ищем официальные страницы и публичные упоминания. Это может занять до минуты.`);
-  renderProfiles();
-  try {
-    const data = await api.researchVenue({
-      name: venue.name,
-      hint: [venue.format, venue.currentGuests, venue.desiredGuests].filter(Boolean).join(". "),
-    });
-    state.research = { ...data, targetVenueId: venue.id };
-    renderResearchResult(state.research);
-    setResearchStatus("Проверьте профиль и источники перед сохранением.");
-    return true;
-  } catch (error) {
-    venue.researchAttemptedAt = null;
-    save(STORAGE.venues, state.venues);
-    renderProfiles();
-    setResearchStatus(`${error.message} Исследование повторится при создании первого поста.`, true);
-    return false;
-  }
-}
-
-function saveResearchProfile() {
-  if (!state.research) return;
-  const profile = state.research.profile;
-  const targetIndex = state.venues.findIndex(item => item.id === state.research.targetVenueId);
-  const previous = targetIndex >= 0 ? state.venues[targetIndex] : {};
-  const item = {
-    ...previous, id: previous.id || crypto.randomUUID(), name: profile.name, description: profile.description,
-    positioning: profile.positioning, voice: profile.voice,
-    knownFacts: profile.known_facts, contentPillars: profile.content_pillars,
-    recommendedStyles: profile.recommended_styles,
-    uncertainties: profile.uncertainties, sources: state.research.sources,
-    researchedAt: new Date().toISOString(),
-  };
-  if (targetIndex >= 0) state.venues[targetIndex] = item;
-  else state.venues.push(item);
-  save(STORAGE.venues, state.venues);
-  renderProfiles();
-  renderSelects();
-  els.venue.value = item.id;
-  renderContext();
-  els.researchResult.classList.add("hidden");
-  state.research = null;
-  setResearchStatus("Профиль сохранён и выбран для новой публикации.");
 }
 
 async function checkHealth() {
@@ -442,14 +351,12 @@ els.draftSearch.addEventListener("input", () => renderDrafts(els.draftSearch.val
 document.querySelectorAll("[data-view]").forEach(button => {
   button.addEventListener("click", () => switchView(button.dataset.view));
 });
-$("#newPostButton").addEventListener("click", startNewPost);
 els.sidebarToggle.addEventListener("click", () => {
   setSidebarCollapsed(!document.body.classList.contains("sidebar-collapsed"));
 });
 $("#openVenueDialog").addEventListener("click", () => openVenueDialog());
 $("#saveVenue").addEventListener("click", saveVenue);
 $("#saveAudience").addEventListener("click", saveAudience);
-$("#saveResearch").addEventListener("click", saveResearchProfile);
 els.venueTree.addEventListener("click", event => {
   const editVenueButton = event.target.closest("[data-edit-venue]");
   if (editVenueButton) {

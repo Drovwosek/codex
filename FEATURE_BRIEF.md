@@ -2,33 +2,45 @@
 
 ## Intent
 
-Help an independent marketer create a complete Telegram post for one restaurant location and one known audience segment from a topic and marketer-provided materials.
+Сделать главным экраном каталог всех заведений, для которых маркетолог ведёт соцсети и готовит публикации.
+
+Главный экран должен помогать:
+
+- быстро завести список всех заведений;
+- увидеть, какие профили уже готовы к работе, а какие нужно заполнить;
+- открыть отдельную страницу конкретного заведения;
+- понять, когда можно переходить к созданию постов.
 
 ## Audience
 
-An independent marketer who manages several locations in a restaurant chain.
+Независимый маркетолог или маркетолог ресторанной сети, который ведёт соцсети нескольких заведений и самостоятельно готовит публикации.
 
 ## Success Criteria
 
-- The marketer selects a restaurant and audience segment.
-- Each audience segment belongs to one restaurant location; selecting a restaurant limits the available segments to that location.
-- The marketer provides a topic and optional source materials.
-- The app produces a ready-to-edit Russian Telegram post tailored to that context.
-- The marketer can edit, copy, and save the result as a draft.
+- При первом запуске пользователь видит понятное пустое состояние и действие «Добавить заведение».
+- Создание заведения остаётся быстрым: пользователь может подряд добавить все заведения и не переходит после каждого создания на страницу настройки.
+- На главном экране каждое заведение представлено компактной карточкой без описания, аудиторий, черновиков и числовых счётчиков.
+- Карточка показывает название и статус: «Нужно заполнить» или «Готово к работе».
+- Нажатие на карточку открывает отдельную страницу заведения.
+- На странице заведения доступны описание, tone of voice, аудитории и связанные черновики публикаций.
+- Заведение считается готовым, когда заполнены название, описание/формат, tone of voice и хотя бы одна аудитория.
+- Когда готово хотя бы одно заведение, на главном экране появляется постоянное сообщение «Всё готово — теперь можно создавать посты» со ссылкой на создание публикации.
+- Пользователь вручную вводит и подтверждает профильные сведения в этой версии.
 
 ## Exclusions
 
-- Automatic audience discovery or improvement suggestions.
-- Direct publication to Telegram.
-- Multiple social networks.
-- Generated images.
-- Team collaboration, approvals, and analytics.
+- Автоматический поиск сведений о заведении в интернете.
+- Управление аккаунтами социальных сетей.
+- Автоматическая публикация постов.
+- Аналитика публикаций.
+- Совместная работа, роли и согласования.
+- Счётчики количества заведений, аудиторий и черновиков.
 
 ## Project Context
 
-This is a new local-first web MVP. Restaurant profiles, audience segments, and drafts are stored in browser local storage. AI requests pass through a small server so the API key is never exposed to the browser.
+Приложение остаётся local-first: заведения, аудитории и черновики хранятся в `localStorage` текущего браузера. Публикация в соцсети выполняется вручную через копирование готового текста.
 
 ## Open Questions
 
-- Which post performance signals should later feed back into generation?
-- Should a future version support brand-level rules shared across locations?
+- Какие дополнительные непубличные сведения о заведении понадобятся для повышения качества генерации после проверки MVP.
+- Нужны ли отдельные правила tone of voice для разных каналов одного заведения.

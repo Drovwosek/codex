@@ -27,6 +27,7 @@ class OpenAIServiceTests(unittest.TestCase):
         result = generate_post(PAYLOAD)
         self.assertTrue(result["demo"])
         self.assertIn("Демо-черновик", result["text"])
+        self.assertNotIn("OPENAI_API_KEY", result["text"])
 
     def test_extracts_unique_sources(self):
         response = {"output": [{"action": {"sources": [
@@ -44,4 +45,3 @@ class OpenAIServiceTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
-

@@ -100,8 +100,8 @@ def demo_post(payload):
     return (
         f"Демо-черновик для «{venue}»\n\n"
         f"{topic}\n\n"
-        f"Этот пост ориентирован на сегмент «{audience}». {detail}\n\n"
-        "Проверьте факты, уточните детали и добавьте OPENAI_API_KEY для полноценной AI-генерации."
+        f"Этот пост ориентирован на аудиторию «{audience}». {detail}\n\n"
+        "Проверьте факты и уточните детали перед публикацией."
     )
 
 
@@ -121,4 +121,3 @@ def generate_post(payload):
     if not output:
         raise RuntimeError("Модель не вернула текст публикации.")
     return {"text": output, "demo": False, "model": model}
-

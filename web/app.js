@@ -7,19 +7,55 @@ const els = {
   topic: $("#topicInput"), materials: $("#materialsInput"), materialsCount: $("#materialsCount"),
   postStyle: $("#postStyleSelect"), form: $("#composerForm"),
   generate: $("#generateButton"), error: $("#formError"), empty: $("#emptyState"),
+  generateLabel: $("#generateButtonLabel"),
   loading: $("#loadingState"), editorState: $("#editorState"), result: $("#resultEditor"),
   resultCount: $("#resultCount"), demo: $("#demoBanner"), saveState: $("#saveState"),
   imageInput: $("#imageInput"), imageChip: $("#imageChip"), imageThumb: $("#imageThumb"),
   imageName: $("#imageName"), resultImage: $("#resultImage"), attached: $("#attachedPreview"),
-  drafts: $("#draftList"), draftCount: $("#draftCount"), aiStatus: $("#aiStatus"),
-  navDraftCount: $("#navDraftCount"), draftSearch: $("#draftSearch"),
-  profilesView: $("#profilesView"), editorView: $("#editorView"), draftsView: $("#draftsView"),
+  drafts: $("#draftList"), aiStatus: $("#aiStatus"), draftSearch: $("#draftSearch"),
+  profilesView: $("#profilesView"), venueDetailView: $("#venueDetailView"), editorView: $("#editorView"), draftsView: $("#draftsView"),
   sidebarToggle: $("#sidebarToggle"), venueTree: $("#venueTree"), profileName: $("#profileName"),
-  profileFormat: $("#profileFormat"), profileCurrentGuests: $("#profileCurrentGuests"),
-  profileDesiredGuests: $("#profileDesiredGuests"),
-  venueDialog: $("#venueDialog"), audienceDialog: $("#audienceDialog"),
-  audienceName: $("#audienceName"), audiencePortrait: $("#audiencePortrait"), audienceNeeds: $("#audienceNeeds"),
+  venueDialog: $("#venueDialog"), venueForm: $("#venueForm"), venueFormError: $("#venueFormError"), audienceDialog: $("#audienceDialog"),
+  audienceForm: $("#audienceForm"), audienceFormError: $("#audienceFormError"), audienceName: $("#audienceName"), audiencePortrait: $("#audiencePortrait"), audienceNeeds: $("#audienceNeeds"),
+  readinessBanner: $("#readinessBanner"), venueDetailForm: $("#venueDetailForm"), venueDetailTitle: $("#venueDetailTitle"),
+  venueDetailStatus: $("#venueDetailStatus"), venueDetailName: $("#venueDetailName"), venueDetailDescription: $("#venueDetailDescription"),
+  venueDetailVoice: $("#venueDetailVoice"), venueDetailError: $("#venueDetailError"), venueAudienceList: $("#venueAudienceList"), venueDraftList: $("#venueDraftList"),
+  toast: $("#toast"), toastMessage: $("#toastMessage"),
 };
+
+let toastTimer;
+let activeVenueId = "";
+const dialogSnapshots = new Map();
+
+function setResultStatus(status) {
+  els.saveState.textContent = status;
+  els.saveState.dataset.status = status;
+}
+
+function showToast(message) {
+  clearTimeout(toastTimer);
+  els.toastMessage.textContent = message;
+  els.toast.classList.add("visible");
+  toastTimer = setTimeout(() => els.toast.classList.remove("visible"), 3200);
+}
+
+function formSnapshot(form) {
+  return JSON.stringify(Array.from(form.elements)
+    .filter(element => element.matches("input, textarea, select"))
+    .map(element => [element.id, element.value]));
+}
+
+function rememberDialog(dialog, form) {
+  dialogSnapshots.set(dialog.id, formSnapshot(form));
+}
+
+function closeDialog(dialog, form, force = false) {
+  const changed = formSnapshot(form) !== dialogSnapshots.get(dialog.id);
+  if (!force && changed && !window.confirm("Закрыть без сохранения? Введённые данные будут потеряны.")) return false;
+  dialog.close();
+  dialogSnapshots.delete(dialog.id);
+  return true;
+}
 
 function renderSelects() {
   const currentVenue = els.venue.value;
@@ -64,8 +100,6 @@ function renderDrafts(query = "") {
     const haystack = `${draft.topic} ${draft.venue} ${draft.audience} ${draft.text}`.toLocaleLowerCase("ru-RU");
     return !normalized || haystack.includes(normalized);
   });
-  els.draftCount.textContent = state.drafts.length;
-  els.navDraftCount.textContent = state.drafts.length;
   if (!drafts.length) {
     els.drafts.innerHTML = `<p class="muted">${normalized ? "По вашему запросу ничего не найдено." : "Сохранённых черновиков пока нет."}</p>`;
     return;
@@ -76,19 +110,24 @@ function renderDrafts(query = "") {
     <button class="draft-item" type="button" data-draft="${index}">
       <span><strong>${escapeHtml(draft.topic || "Без темы")}</strong>
       <small>${escapeHtml(draft.venue)} · ${escapeHtml(draft.audience || "Аудитория не указана")}</small></span>
-      <time>${new Date(draft.createdAt).toLocaleDateString("ru-RU")}</time>
+      <span class="draft-item-end"><time>${new Date(draft.createdAt).toLocaleDateString("ru-RU")}</time><span class="draft-item-action">Продолжить редактирование</span><span class="draft-chevron" aria-hidden="true">›</span></span>
     </button>`;
   }).join("");
 }
 
 function switchView(view) {
   els.profilesView.classList.toggle("hidden", view !== "profiles");
+  els.venueDetailView.classList.toggle("hidden", view !== "venue");
   els.editorView.classList.toggle("hidden", view !== "editor");
   els.draftsView.classList.toggle("hidden", view !== "drafts");
   document.querySelectorAll("[data-view]").forEach(button => {
-    button.classList.toggle("active", button.dataset.view === view);
+    const active = button.dataset.view === view;
+    button.classList.toggle("active", active);
+    if (active) button.setAttribute("aria-current", "page");
+    else button.removeAttribute("aria-current");
   });
   if (view === "profiles") renderProfiles();
+  if (view === "venue") renderVenueDetail();
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
@@ -104,6 +143,7 @@ function setView(name) {
   els.empty.classList.toggle("hidden", name !== "empty");
   els.loading.classList.toggle("hidden", name !== "loading");
   els.editorState.classList.toggle("hidden", name !== "editor");
+  $(".result-panel").setAttribute("aria-busy", name === "loading" ? "true" : "false");
 }
 
 function selectedPayload() {
@@ -124,14 +164,16 @@ async function generate(event) {
     switchView("profiles");
     return;
   }
+  setResultStatus("Генерируем пост…");
+  els.generateLabel.textContent = "Генерируем пост…";
   setView("loading");
   els.generate.disabled = true;
   try {
     const data = await api.generatePost(selectedPayload());
     els.result.value = data.text;
     els.demo.classList.toggle("hidden", !data.demo);
-    els.saveState.textContent = "Не сохранён";
-    updateResultCount();
+    updateResultCount(false);
+    setResultStatus("Пост готов");
     syncResultImage();
     setView("editor");
   } catch (error) {
@@ -140,12 +182,13 @@ async function generate(event) {
     els.error.classList.remove("hidden");
   } finally {
     els.generate.disabled = false;
+    els.generateLabel.textContent = "Создать публикацию";
   }
 }
 
-function updateResultCount() {
+function updateResultCount(markDirty = true) {
   els.resultCount.textContent = `${els.result.value.length.toLocaleString("ru-RU")} знаков`;
-  els.saveState.textContent = "Есть изменения";
+  if (markDirty) setResultStatus("Есть изменения");
 }
 
 function syncResultImage() {
@@ -176,7 +219,7 @@ function saveDraft() {
   });
   state.drafts = state.drafts.slice(0, 20);
   save(STORAGE.drafts, state.drafts);
-  els.saveState.textContent = "Сохранён";
+  setResultStatus("Сохранён");
   renderDrafts();
 }
 
@@ -199,8 +242,8 @@ function openDraft(index) {
   els.topic.value = draft.topic;
   els.result.value = draft.text;
   els.demo.classList.add("hidden");
-  updateResultCount();
-  els.saveState.textContent = "Сохранён";
+  updateResultCount(false);
+  setResultStatus("Сохранён");
   setView("editor");
   switchView("editor");
 }
@@ -211,7 +254,7 @@ function startNewPost() {
   els.materialsCount.textContent = "0";
   els.result.value = "";
   els.error.classList.add("hidden");
-  els.saveState.textContent = "Не сохранён";
+  setResultStatus("Не сохранён");
   removeImage();
   setView("empty");
   switchView("editor");
@@ -219,91 +262,132 @@ function startNewPost() {
 }
 
 function renderProfiles() {
-  $("#venueCount").textContent = state.venues.length;
-  $("#audienceCount").textContent = state.audiences.length;
-  els.venueTree.innerHTML = state.venues.map(venue => {
-    const audiences = audiencesForVenue(venue.id);
-    const audienceMarkup = audiences.length
-      ? audiences.map(audience => `
-          <div class="audience-node">
-            <div><strong>${escapeHtml(audience.name)}</strong><small>${escapeHtml(audience.description || audience.needs || "Портрет не заполнен")}</small></div>
-            <div class="row-actions"><button class="button button--ghost button--xs" type="button" data-edit-audience="${audience.id}">Изменить</button><button class="button button--danger button--xs" type="button" data-remove-audience="${audience.id}" aria-label="Удалить аудиторию">Удалить</button></div>
-          </div>`).join("")
-      : '<p class="audience-empty">Аудитории ещё не добавлены</p>';
-    return `
-      <article class="venue-node">
-        <div class="venue-node-header">
-          <div><strong>${escapeHtml(venue.name)}</strong><small>${escapeHtml(venueSummary(venue))}</small></div>
-          <div class="row-actions"><button class="button button--ghost button--xs" type="button" data-edit-venue="${venue.id}">Изменить</button><button class="button button--danger button--xs" type="button" data-remove-venue="${venue.id}" aria-label="Удалить заведение">Удалить</button></div>
-        </div>
-        <div class="venue-audiences">
-          <div class="venue-audiences-title"><span>Аудитории этого заведения</span><b>${audiences.length}</b></div>
-          ${audienceMarkup}
-          <button class="button button--ghost button--xs add-linked-audience" type="button" data-add-audience="${venue.id}">＋ Добавить аудиторию</button>
-        </div>
-      </article>`;
-  }).join("") || '<p class="profile-empty">Заведений пока нет. Добавьте первое — аудитории появятся внутри его карточки.</p>';
+  els.readinessBanner.classList.toggle("hidden", !state.venues.some(isVenueReady));
+  els.venueTree.innerHTML = state.venues.map(venue => `
+    <article class="venue-node" data-open-venue="${venue.id}" tabindex="0" role="button" aria-label="Открыть ${escapeHtml(venue.name)}">
+      <div class="venue-node-header">
+        <div class="entity-copy"><strong>${escapeHtml(venue.name)}</strong><span class="readiness-status ${isVenueReady(venue) ? "ready" : "incomplete"}">${isVenueReady(venue) ? "Готово к работе" : "Нужно заполнить"}</span></div>
+        <div class="row-actions"><button class="button button--ghost button--xs" type="button" data-open-venue="${venue.id}">Открыть</button><button class="button button--danger button--xs" type="button" data-remove-venue="${venue.id}">Удалить</button></div>
+        <span class="venue-chevron" aria-hidden="true">›</span>
+      </div>
+    </article>`).join("") || '<div class="profile-empty"><strong>Добавьте первое заведение</strong><span>Здесь появятся места, для которых вы готовите публикации.</span><button class="button button--primary button--sm" type="button" data-add-first-venue>Добавить заведение</button></div>';
 }
 
-function venueSummary(item) {
-  return item.researchedAt
-    ? item.positioning || item.description || item.format
-    : item.format || "Формат заведения не заполнен";
+function isVenueReady(venue) {
+  return Boolean(venue.name?.trim() && (venue.description?.trim() || venue.format?.trim()) && venue.voice?.trim() && audiencesForVenue(venue.id).length);
 }
 
-function saveVenue() {
+function openVenueDetail(venueId) {
+  if (!state.venues.some(item => item.id === venueId)) return;
+  activeVenueId = venueId;
+  switchView("venue");
+}
+
+function renderVenueDetail() {
+  const venue = state.venues.find(item => item.id === activeVenueId);
+  if (!venue) {
+    switchView("profiles");
+    return;
+  }
+  const ready = isVenueReady(venue);
+  els.venueDetailTitle.textContent = venue.name;
+  els.venueDetailStatus.textContent = ready ? "Готово к работе" : "Нужно заполнить";
+  els.venueDetailStatus.className = `readiness-status ${ready ? "ready" : "incomplete"}`;
+  els.venueDetailName.value = venue.name || "";
+  els.venueDetailDescription.value = venue.description || venue.format || "";
+  els.venueDetailVoice.value = venue.voice || "";
+  const audiences = audiencesForVenue(venue.id);
+  els.venueAudienceList.innerHTML = audiences.map(audience => `
+    <div class="detail-list-item">
+      <div><strong>${escapeHtml(audience.name)}</strong><small>${escapeHtml(audience.description || audience.needs)}</small></div>
+      <div class="row-actions"><button class="button button--ghost button--xs" type="button" data-edit-audience="${audience.id}">Изменить</button><button class="button button--danger button--xs" type="button" data-remove-audience="${audience.id}">Удалить</button></div>
+    </div>`).join("") || '<p class="detail-empty">Добавьте аудиторию, чтобы учитывать её потребности при создании постов.</p>';
+  const drafts = state.drafts.filter(draft => draft.venueId === venue.id || (!draft.venueId && draft.venue === venue.name));
+  els.venueDraftList.innerHTML = drafts.map(draft => {
+    const index = state.drafts.indexOf(draft);
+    return `<button class="detail-list-item detail-draft" type="button" data-draft="${index}"><span><strong>${escapeHtml(draft.topic || "Без темы")}</strong><small>${new Date(draft.createdAt).toLocaleDateString("ru-RU")}</small></span><span class="venue-chevron">›</span></button>`;
+  }).join("") || '<p class="detail-empty">У этого заведения пока нет сохранённых черновиков.</p>';
+}
+
+function saveVenue(event) {
+  event.preventDefault();
   const name = els.profileName.value.trim();
-  const format = els.profileFormat.value.trim();
-  const currentGuests = els.profileCurrentGuests.value.trim();
-  const desiredGuests = els.profileDesiredGuests.value.trim();
-  if (!name || !format || !currentGuests || !desiredGuests) return;
-  const existing = state.venues.find(item => item.id === state.editingVenueId);
-  const item = existing || { id: crypto.randomUUID(), voice: "Конкретный и естественный голос, соответствующий формату заведения и его гостям.", recommendedStyles: DEFAULT_POST_STYLES };
-  Object.assign(item, { name, format, currentGuests, desiredGuests });
-  if (!item.researchedAt) Object.assign(item, { description: format, positioning: format });
+  if (!els.venueForm.reportValidity() || !name) {
+    els.venueFormError.classList.remove("hidden");
+    return;
+  }
+  els.venueFormError.classList.add("hidden");
+  const item = { id: crypto.randomUUID(), name, description: "", voice: "", recommendedStyles: DEFAULT_POST_STYLES };
   state.profileVenueId = item.id;
-  if (!existing) state.venues.push(item);
+  state.venues.push(item);
   save(STORAGE.venues, state.venues);
-  els.profileName.value = els.profileFormat.value = els.profileCurrentGuests.value = els.profileDesiredGuests.value = "";
+  els.profileName.value = "";
   renderProfiles();
   renderSelects();
-  els.venueDialog.close();
+  closeDialog(els.venueDialog, els.venueForm, true);
+  showToast(`Заведение «${name}» добавлено`);
 }
 
-function saveAudience() {
+function saveVenueDetail(event) {
+  event.preventDefault();
+  const venue = state.venues.find(item => item.id === activeVenueId);
+  const name = els.venueDetailName.value.trim();
+  const description = els.venueDetailDescription.value.trim();
+  const voice = els.venueDetailVoice.value.trim();
+  if (!venue || !els.venueDetailForm.reportValidity() || !name || !description || !voice) {
+    els.venueDetailError.classList.remove("hidden");
+    return;
+  }
+  Object.assign(venue, { name, description, format: description, voice });
+  save(STORAGE.venues, state.venues);
+  els.venueDetailError.classList.add("hidden");
+  renderVenueDetail();
+  renderProfiles();
+  renderSelects();
+  showToast(`Профиль «${name}» сохранён`);
+}
+
+function saveAudience(event) {
+  event.preventDefault();
   const venueId = state.profileVenueId;
   const name = els.audienceName.value.trim();
   const description = els.audiencePortrait.value.trim();
   const needs = els.audienceNeeds.value.trim();
-  if (!venueId || !name || !description || !needs) return;
+  if (!els.audienceForm.reportValidity() || !venueId || !name || !description || !needs) {
+    els.audienceFormError.classList.remove("hidden");
+    return;
+  }
+  els.audienceFormError.classList.add("hidden");
   const existing = state.audiences.find(item => item.id === state.editingAudienceId);
   if (existing) Object.assign(existing, { name, description, needs });
   else state.audiences.push({ id: crypto.randomUUID(), venueId, name, description, needs });
   save(STORAGE.audiences, state.audiences);
   renderProfiles();
+  if (activeVenueId === venueId) renderVenueDetail();
   renderSelects();
-  els.audienceDialog.close();
+  closeDialog(els.audienceDialog, els.audienceForm, true);
+  showToast(existing ? `Аудитория «${name}» обновлена` : `Аудитория «${name}» добавлена`);
 }
 
-function openVenueDialog(venue = null) {
-  state.editingVenueId = venue?.id || "";
-  $("#venueDialogTitle").textContent = venue ? "Изменить заведение" : "Добавить заведение";
-  els.profileName.value = venue?.name || "";
-  els.profileFormat.value = venue?.format || "";
-  els.profileCurrentGuests.value = venue?.currentGuests || "";
-  els.profileDesiredGuests.value = venue?.desiredGuests || "";
+function openVenueDialog() {
+  els.profileName.value = "";
+  els.venueFormError.classList.add("hidden");
   els.venueDialog.showModal();
+  rememberDialog(els.venueDialog, els.venueForm);
 }
 
 function openAudienceDialog(venue, audience = null) {
   state.profileVenueId = venue.id;
   state.editingAudienceId = audience?.id || "";
   $("#audienceDialogTitle").textContent = audience ? "Изменить аудиторию" : "Добавить аудиторию";
+  $("#saveAudience").textContent = audience ? "Сохранить изменения" : "Добавить аудиторию";
   $("#audienceDialogContext").textContent = `Заведение: ${venue.name}`;
   els.audienceName.value = audience?.name || "";
   els.audiencePortrait.value = audience?.description || "";
   els.audienceNeeds.value = audience?.needs || "";
+  els.audienceFormError.classList.add("hidden");
   els.audienceDialog.showModal();
+  rememberDialog(els.audienceDialog, els.audienceForm);
 }
 
 async function checkHealth() {
@@ -355,33 +439,39 @@ els.sidebarToggle.addEventListener("click", () => {
   setSidebarCollapsed(!document.body.classList.contains("sidebar-collapsed"));
 });
 $("#openVenueDialog").addEventListener("click", () => openVenueDialog());
-$("#saveVenue").addEventListener("click", saveVenue);
-$("#saveAudience").addEventListener("click", saveAudience);
+$("#backToProfiles").addEventListener("click", () => switchView("profiles"));
+$("#addDetailAudience").addEventListener("click", () => {
+  const venue = state.venues.find(item => item.id === activeVenueId);
+  if (venue) openAudienceDialog(venue);
+});
+els.venueDetailForm.addEventListener("submit", saveVenueDetail);
+els.venueDetailForm.addEventListener("input", () => els.venueDetailError.classList.add("hidden"));
+els.venueForm.addEventListener("submit", saveVenue);
+els.venueForm.addEventListener("input", () => els.venueFormError.classList.add("hidden"));
+els.audienceForm.addEventListener("submit", saveAudience);
+els.audienceForm.addEventListener("input", () => els.audienceFormError.classList.add("hidden"));
+document.querySelectorAll("[data-close-dialog]").forEach(button => {
+  button.addEventListener("click", () => {
+    const dialog = $(`#${button.dataset.closeDialog}`);
+    const form = dialog === els.venueDialog ? els.venueForm : els.audienceForm;
+    closeDialog(dialog, form);
+  });
+});
+[
+  [els.venueDialog, els.venueForm],
+  [els.audienceDialog, els.audienceForm],
+].forEach(([dialog, form]) => {
+  dialog.addEventListener("cancel", event => {
+    event.preventDefault();
+    closeDialog(dialog, form);
+  });
+});
 els.venueTree.addEventListener("click", event => {
-  const editVenueButton = event.target.closest("[data-edit-venue]");
-  if (editVenueButton) {
-    openVenueDialog(state.venues.find(item => item.id === editVenueButton.dataset.editVenue));
-    return;
-  }
-  const editAudienceButton = event.target.closest("[data-edit-audience]");
-  if (editAudienceButton) {
-    const audience = state.audiences.find(item => item.id === editAudienceButton.dataset.editAudience);
-    const venue = state.venues.find(item => item.id === audience?.venueId);
-    if (venue && audience) openAudienceDialog(venue, audience);
-    return;
-  }
-  const addButton = event.target.closest("[data-add-audience]");
-  if (addButton) {
-    const venue = state.venues.find(item => item.id === addButton.dataset.addAudience);
-    if (venue) openAudienceDialog(venue);
-    return;
-  }
   const venueButton = event.target.closest("[data-remove-venue]");
   if (venueButton) {
     const venue = state.venues.find(item => item.id === venueButton.dataset.removeVenue);
-    const linkedCount = audiencesForVenue(venueButton.dataset.removeVenue).length;
-    const message = linkedCount
-      ? `Удалить «${venue?.name}» и связанные аудитории (${linkedCount})?`
+    const message = audiencesForVenue(venueButton.dataset.removeVenue).length
+      ? `Удалить «${venue?.name}» и все связанные аудитории?`
       : `Удалить «${venue?.name}»?`;
     if (!window.confirm(message)) return;
     state.venues = state.venues.filter(item => item.id !== venueButton.dataset.removeVenue);
@@ -391,11 +481,42 @@ els.venueTree.addEventListener("click", event => {
     renderProfiles(); renderSelects();
     return;
   }
+  if (event.target.closest("[data-add-first-venue]")) {
+    openVenueDialog();
+    return;
+  }
+  const openButton = event.target.closest("[data-open-venue]");
+  if (openButton) openVenueDetail(openButton.dataset.openVenue);
+});
+els.venueTree.addEventListener("keydown", event => {
+  if (event.key !== "Enter" && event.key !== " ") return;
+  if (!event.target.classList.contains("venue-node")) return;
+  const venue = event.target.closest("[data-open-venue]");
+  if (venue) {
+    event.preventDefault();
+    openVenueDetail(venue.dataset.openVenue);
+  }
+});
+els.venueDetailView.addEventListener("click", event => {
+  const draftButton = event.target.closest("[data-draft]");
+  if (draftButton) {
+    openDraft(Number(draftButton.dataset.draft));
+    return;
+  }
+  const editAudienceButton = event.target.closest("[data-edit-audience]");
+  if (editAudienceButton) {
+    const audience = state.audiences.find(item => item.id === editAudienceButton.dataset.editAudience);
+    const venue = state.venues.find(item => item.id === audience?.venueId);
+    if (venue && audience) openAudienceDialog(venue, audience);
+    return;
+  }
   const audienceButton = event.target.closest("[data-remove-audience]");
   if (audienceButton) {
+    const audience = state.audiences.find(item => item.id === audienceButton.dataset.removeAudience);
+    if (!window.confirm(`Удалить аудиторию «${audience?.name}»?`)) return;
     state.audiences = state.audiences.filter(item => item.id !== audienceButton.dataset.removeAudience);
     save(STORAGE.audiences, state.audiences);
-    renderProfiles(); renderSelects();
+    renderProfiles(); renderVenueDetail(); renderSelects();
   }
 });
 

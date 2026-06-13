@@ -16,5 +16,6 @@
 
 ## Product
 
+- Проработать сценарий создания постов как отдельную фичу: провести интервью, определить обязательный контекст и материалы, выбор заведения и аудитории, форматы публикаций, состояния генерации и ошибок, редактирование результата, сохранение черновика, копирование и ручную публикацию.
 - Add direct Telegram publishing with explicit channel authorization and preview confirmation.
 - Move profiles and drafts from browser storage to authenticated cloud storage when multi-device use is required.

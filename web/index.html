@@ -17,7 +17,7 @@
       <nav class="main-nav" aria-label="Основная навигация">
         <button class="nav-item active" type="button" data-view="profiles"><span>◫</span>Заведения</button>
         <button class="nav-item" type="button" data-view="editor"><span>✦</span>Новая публикация</button>
-        <button class="nav-item" type="button" data-view="drafts"><span>▤</span>Черновики <b id="navDraftCount">0</b></button>
+        <button class="nav-item" type="button" data-view="drafts"><span>▤</span>Черновики</button>
       </nav>
       <div class="sidebar-bottom">
         <span class="status-pill" id="aiStatus"><span class="status-dot"></span>Проверяем AI</span>
@@ -36,17 +36,50 @@
         <section class="page-view profiles-view" id="profilesView">
           <div class="page-heading">
             <div><h1>Заведения</h1><p>У каждого заведения свой профиль и собственные аудитории.</p></div>
-            <div class="profile-counters"><span><b id="venueCount">0</b> заведений</span><span><b id="audienceCount">0</b> сегментов</span></div>
           </div>
 
           <div class="profiles-layout">
+            <div class="readiness-banner hidden" id="readinessBanner">
+              <div><strong>Всё готово — теперь можно создавать посты</strong><small>Выберите готовое заведение и его аудиторию в редакторе.</small></div>
+              <button class="button button--primary button--sm" type="button" data-view="editor">Перейти к публикациям</button>
+            </div>
             <section class="profiles-main card">
               <div class="catalog-toolbar">
-                <div><strong>Каталог заведений</strong><small>Аудитории находятся внутри соответствующих заведений</small></div>
+                <div><strong>Каталог заведений</strong><small>Добавьте все места, для которых вы ведёте соцсети</small></div>
                 <button class="button button--secondary button--sm" id="openVenueDialog" type="button">＋ Добавить заведение</button>
               </div>
               <div class="venue-tree" id="venueTree"></div>
             </section>
+          </div>
+        </section>
+
+        <section class="page-view hidden" id="venueDetailView">
+          <button class="back-link" id="backToProfiles" type="button">← Все заведения</button>
+          <div class="page-heading venue-detail-heading">
+            <div><h1 id="venueDetailTitle"></h1><p>Данные, которые помогают создавать публикации в характере заведения.</p></div>
+            <span class="readiness-status" id="venueDetailStatus"></span>
+          </div>
+
+          <div class="venue-detail-layout">
+            <form class="card venue-profile-card" id="venueDetailForm">
+              <div class="section-heading"><h2>Профиль заведения</h2><p>Заполните то, что нельзя надёжно узнать без вас.</p></div>
+              <label class="field"><span>Название <b>*</b></span><input id="venueDetailName" required></label>
+              <label class="field"><span>Описание и формат <b>*</b></span><textarea id="venueDetailDescription" rows="5" placeholder="Что это за место, чем отличается и зачем сюда приходят" required></textarea></label>
+              <label class="field"><span>Tone of voice <b>*</b></span><textarea id="venueDetailVoice" rows="5" placeholder="Как заведение говорит с гостями: характер, лексика, ограничения" required></textarea></label>
+              <p class="form-error hidden" id="venueDetailError" role="alert">Заполните обязательные поля.</p>
+              <div class="detail-form-actions"><button class="button button--primary" type="submit">Сохранить профиль</button></div>
+            </form>
+
+            <div class="venue-detail-side">
+              <section class="card detail-section">
+                <div class="detail-section-heading"><div><h2>Аудитории</h2><p>Для кого вы готовите публикации этого заведения.</p></div><button class="button button--secondary button--sm" id="addDetailAudience" type="button">＋ Добавить</button></div>
+                <div class="detail-list" id="venueAudienceList"></div>
+              </section>
+              <section class="card detail-section">
+                <div class="detail-section-heading"><div><h2>Черновики</h2><p>Сохранённые публикации этого заведения.</p></div></div>
+                <div class="detail-list" id="venueDraftList"></div>
+              </section>
+            </div>
           </div>
         </section>
 
@@ -106,9 +139,11 @@
           <button id="removeImage" type="button" aria-label="Удалить изображение">×</button>
         </div>
 
-        <button class="button button--primary button--block generate-button" id="generateButton" type="submit">
-          <span>Создать публикацию</span><span class="button-arrow">↗</span>
-        </button>
+        <div class="generate-action">
+          <button class="button button--primary button--block generate-button" id="generateButton" type="submit">
+            <span id="generateButtonLabel">Создать публикацию</span><span class="button-arrow">↗</span>
+          </button>
+        </div>
         <p class="form-error hidden" id="formError" role="alert"></p>
       </form>
 
@@ -134,9 +169,9 @@
         </div>
 
         <div class="editor-state hidden" id="editorState">
-          <div class="demo-banner hidden" id="demoBanner">Демо-режим: подключите API-ключ для полноценной генерации</div>
+          <div class="demo-banner hidden" id="demoBanner">Сейчас показан демо-текст. Подключите API-ключ, чтобы генерировать готовые посты.</div>
           <textarea id="resultEditor" aria-label="Текст Telegram-поста"></textarea>
-          <div class="editor-meta"><span id="resultCount">0 знаков</span><span>Можно редактировать</span></div>
+          <div class="editor-meta"><span id="resultCount">0 знаков</span><span>Текст можно отредактировать</span></div>
           <div class="result-actions">
             <button class="button button--primary" id="saveDraft" type="button">Сохранить черновик</button>
             <button class="button button--secondary" id="copyPost" type="button">Скопировать текст</button>
@@ -154,7 +189,6 @@
         <section class="page-view hidden" id="draftsView">
           <div class="page-heading">
             <div><h1>Черновики</h1><p>Сохранённые публикации для ваших заведений.</p></div>
-            <span class="counter-badge"><b id="draftCount">0</b> публикаций</span>
           </div>
           <div class="drafts-card card">
             <div class="drafts-toolbar">
@@ -168,25 +202,29 @@
   </div>
 
   <dialog id="venueDialog">
-    <form class="entity-dialog" method="dialog">
-      <div class="dialog-header"><div><h2 id="venueDialogTitle">Добавить заведение</h2><p>Профиль используется для исследования и генерации публикаций.</p></div><button class="dialog-close" value="cancel" aria-label="Закрыть">×</button></div>
-      <input id="profileName" placeholder="Название">
-      <input id="profileFormat" placeholder="Формат заведения — например, семейная траттория">
-      <textarea id="profileCurrentGuests" rows="3" placeholder="Портрет текущих посетителей — кто они, зачем приходят, что для них важно"></textarea>
-      <textarea id="profileDesiredGuests" rows="3" placeholder="Портрет желаемых посетителей — кого хотите привлечь, с каким поводом и потребностями"></textarea>
-      <div class="dialog-actions"><button class="button button--secondary" value="cancel">Отмена</button><button id="saveVenue" class="button button--primary" type="button">Сохранить заведение</button></div>
+    <form class="entity-dialog" id="venueForm" novalidate>
+      <div class="dialog-header"><div><h2>Добавить заведение</h2><p>Сейчас достаточно названия. Профиль можно заполнить позже.</p></div><button class="dialog-close" type="button" data-close-dialog="venueDialog" aria-label="Закрыть">×</button></div>
+      <label class="dialog-field"><span>Название <b>*</b></span><input id="profileName" placeholder="Например, Тесто и огонь · Центр" required></label>
+      <p class="dialog-error hidden" id="venueFormError" role="alert">Укажите название заведения.</p>
+      <div class="dialog-actions"><button class="button button--secondary" type="button" data-close-dialog="venueDialog">Отмена</button><button id="saveVenue" class="button button--primary" type="submit">Добавить заведение</button></div>
     </form>
   </dialog>
 
   <dialog id="audienceDialog">
-    <form class="entity-dialog" method="dialog">
-      <div class="dialog-header"><div><h2 id="audienceDialogTitle">Добавить аудиторию</h2><p id="audienceDialogContext"></p></div><button class="dialog-close" value="cancel" aria-label="Закрыть">×</button></div>
-      <input id="audienceName" placeholder="Название сегмента">
-      <textarea id="audiencePortrait" rows="3" placeholder="Портрет посетителей — кто они, зачем приходят, что для них важно"></textarea>
-      <textarea id="audienceNeeds" rows="2" placeholder="Ключевые потребности и ожидания"></textarea>
-      <div class="dialog-actions"><button class="button button--secondary" value="cancel">Отмена</button><button id="saveAudience" class="button button--primary" type="button">Сохранить аудиторию</button></div>
+    <form class="entity-dialog" id="audienceForm" novalidate>
+      <div class="dialog-header"><div><h2 id="audienceDialogTitle">Добавить аудиторию</h2><p id="audienceDialogContext"></p></div><button class="dialog-close" type="button" data-close-dialog="audienceDialog" aria-label="Закрыть">×</button></div>
+      <label class="dialog-field"><span>Название аудитории <b>*</b></span><input id="audienceName" placeholder="Например, семьи с детьми" required></label>
+      <label class="dialog-field"><span>Портрет посетителей <b>*</b></span><textarea id="audiencePortrait" rows="3" placeholder="Кто они, зачем приходят, что для них важно" required></textarea></label>
+      <label class="dialog-field"><span>Потребности и ожидания <b>*</b></span><textarea id="audienceNeeds" rows="2" placeholder="Что помогает им выбрать это заведение" required></textarea></label>
+      <p class="dialog-error hidden" id="audienceFormError" role="alert">Заполните все обязательные поля.</p>
+      <div class="dialog-actions"><button class="button button--secondary" type="button" data-close-dialog="audienceDialog">Отмена</button><button id="saveAudience" class="button button--primary" type="submit">Добавить аудиторию</button></div>
     </form>
   </dialog>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true">
+    <span class="toast-icon" aria-hidden="true">✓</span>
+    <span id="toastMessage"></span>
+  </div>
 
   <script src="js/utils.js" defer></script>
   <script src="js/store.js" defer></script>
